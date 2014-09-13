@@ -1,6 +1,6 @@
 "use strict";
 
-var exec = require('../exec');
+var Context = require('../context');
 var expect = require('expect.js');
 
 var tests = {
@@ -85,16 +85,23 @@ var tests = {
 	// stuffz
 	'(list 3 4 5)': [3, 4, 5],
 	'(progn 4 5)': 5,
-	'(progn (setq a (+ 5 7)) (setq b (+ a 8)))': 20
+	'(progn (setq a (+ 5 7)) (setq b (+ a 8)))': 20,
 
+	// attached function
+	'(wtf 5 6)': 30,
 };
 
 describe('execute', function(){
+	var ctx = new Context();
+
+	ctx.procedures.wtf = function(args, env) {
+		return this.exec(args[0], env) * this.exec(args[1], env);
+	};
 
 	for (var code in tests) (function(code, expected){
 
 		it('should evaluate `' + code + '` to ' + expected, function(){
-			expect(exec(code)).to.eql(expected);
+			expect(ctx.exec(code)).to.eql(expected);
 		});
 
 	})(code, tests[code]);

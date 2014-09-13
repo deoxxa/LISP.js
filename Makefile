@@ -11,6 +11,6 @@ test-phantom:
 	@phantomjs test/phantom.js http://localhost:8080
 
 build:
-	@./node_modules/wrapup/bin/wrup.js LISP ./LISP.js
+	@./node_modules/.bin/wrup -o build.js -r ./LISP.js
 
 .PHONY: test
