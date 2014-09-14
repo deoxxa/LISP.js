@@ -1,4 +1,4 @@
 "use strict";
 
-exports.parse = require('./parse');
+exports.parser = require('./parser');
 exports.Context = require('./context');

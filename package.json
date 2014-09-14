@@ -25,12 +25,14 @@
   },
   "main": "./LISP",
   "scripts": {
-    "test": "make test"
+    "test": "make test",
+    "peg": "pegjs src/parser.peg parser.js"
   },
   "devDependencies": {
     "mocha": "1.2",
     "expect.js": "0.1",
-    "wrapup": "0.9.10"
+    "wrapup": "0.9.10",
+    "pegjs": "^0.8.0"
   },
   "dependencies": {},
   "optionalDependencies": {},

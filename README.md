@@ -8,11 +8,22 @@ Parse and execute LISP code in JavaScript.
 API
 ---
 
-For parsing the code, the `parse` function can be used.
-This will return an array with all pieces.
+For parsing the code, the `parser` object can be used. This will return an AST
+of the code.
 
 ``` js
-parse('(+ 2 3)'); // ['+', 2, 3]
+parser.parse('(+ 2 3)');
+```
+
+```js
+{ type: 'list',
+  eval: true,
+  cells:
+   [ { type: 'symbol',
+       eval: true,
+       name: '+' },
+     { type: 'number', value: 2 },
+     { type: 'number', value: 3 } ] }
 ```
 
 Executing code can be done with the `Context` object:
@@ -21,6 +32,8 @@ Executing code can be done with the `Context` object:
 var ctx = new Context();
 ctx.exec('(+ 3 (- 10 5))'); // 8
 ```
+
+The `exec` method accepts strings or AST objects.
 
 LISP.js in Node.js
 ------------------

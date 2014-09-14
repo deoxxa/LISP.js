@@ -1,0 +1,70 @@
+start = __ cell:cell __ {
+  return cell;
+}
+
+_ = [ \n\r\t]
+__ = _*
+
+cells = d:(cell (_+ cell)*)? {
+  var cells = [];
+
+  if (d && d.length) {
+    cells = [d[0]];
+
+    if (d.length > 1) {
+      cells = cells.concat(d[1].map(function(e) { 
+        return e[1];
+      }));
+    }
+  }
+
+  return cells;
+}
+
+cell = data:(list / atom) {
+  return data;
+}
+
+list = q:"'"? "(" __ cells:cells __ ")" {
+  return {
+    type: "list",
+    eval: !q,
+    cells: cells,
+  };
+}
+
+atom = boolean / number / string / symbol
+
+boolean = v:("#t" / "#f") {
+  return {
+    type: "boolean",
+    value: v === "#t",
+  };
+}
+
+number = d:[0-9]+ m:("." [0-9]+)? {
+  var s = d.join("");
+  if (m) {
+    s += "." + m[1].join("");
+  }
+
+  return {
+    type: "number",
+    value: parseFloat(s),
+  };
+}
+
+string = "\"" c:("\\\"" / [^"])+ "\"" {
+  return {
+    type: "string",
+    value: JSON.parse('"' + c.join("") + '"'),
+  }
+}
+
+symbol = q:"'"? d:[^\(\) \n\r\t#"]+ {
+  return {
+    type: "symbol",
+    eval: !q,
+    name: d.join(""),
+  };
+}
