@@ -3,8 +3,19 @@
 var parser = require('./parser');
 
 var Context = function Context() {
-	this.procedures = Object.create(builtins);
 	this.globalenv = Object.create(null);
+
+	for (var k in builtins) {
+		this.attach(k, builtins[k]);
+	}
+};
+
+Context.prototype.attach = function attach(name, fn) {
+	this.globalenv[name] = {
+		type: "function",
+		name: name,
+		fn: fn,
+	};
 };
 
 Context.prototype.exec = function(expr, env) {
@@ -13,23 +24,16 @@ Context.prototype.exec = function(expr, env) {
 	}
 
 	if (expr.type === "string" || expr.type === "number" || expr.type === "boolean") {
-		return expr.value;
+		return expr;
 	}
 
-	// if ((expr.type === "symbol" || expr.type === "list") && (expr.eval === false)) {
-	// 	return expr;
-	// }
+	if (!env) {
+		env = this.globalenv;
+	}
 
 	if (expr.type === "symbol") {
 		if (expr.eval === false) {
 			return expr;
-		}
-
-		if (expr.name in this.procedures) {
-			return {
-				type: "function",
-				fn: this.procedures[expr.name],
-			};
 		}
 
 		if (expr.name in env) {
@@ -45,10 +49,6 @@ Context.prototype.exec = function(expr, env) {
 
 	if (expr.eval === false) {
 		return expr.cells;
-	}
-
-	if (!env) {
-		env = this.globalenv;
 	}
 
 	var fn = this.exec(expr.cells[0], env),
@@ -72,7 +72,7 @@ var builtins = {
 		}
 
 		if (typeof fargs !== "object" || fargs.type !== "list") {
-			throw new error("the argument list parameter of a defun statement must be a list");
+			throw new Error("the argument list parameter of a defun statement must be a list");
 		}
 
 		for (var i=0;i<fargs.cells.length;i++) {
@@ -96,19 +96,24 @@ var builtins = {
 			return res;
 		};
 
-		env[fname.name] = {
+		var res = {
 			type: "function",
+			name: fname.name,
 			fn: fn,
 		};
 
-		return fname.name;
+		env[fname.name] = res;
+
+		return res;
 	},
 
 	'if': function(args, env) {
-		var condition = this.exec(args[0], env),
-				res = false;
+		var res = {
+			type: "boolean",
+			value: false,
+		};
 
-		if (condition !== false) {
+		if (this.exec(args[0], env).value !== false) {
 			res = this.exec(args[1], env);
 		}	else if (args[2]) {
 			res = this.exec(args[2], env);
@@ -118,14 +123,14 @@ var builtins = {
 	},
 
 	'setq': function(args, env) {
-		var res = false;
+		var res = null;
 
 		for (var i = 0; i < args.length; i += 2) {
-			if (typeof args[i] !== "object" || args[i].type !== "symbol") {
+			if (args[i].type !== "symbol") {
 				throw new Error("tried to assign to a non-symbol in setq");
 			}
 
-			res = env[args[i].name] = this.exec(args[i + 1], env);
+			res = env[args[i].name] = this.exec(args[i+1], env);
 		}
 
 		return res;
@@ -144,77 +149,124 @@ var builtins = {
 	},
 
 	'+': function(args, env) {
-		var res = 0;
+		var res = this.exec(args[0], env).value;
 
-		for (var i = 0; i < args.length; i++) {
-			res += this.exec(args[i], env);
+		for (var i = 1; i < args.length; i++) {
+			res += this.exec(args[i], env).value;
 		}
 
-		return res;
+		return {type: "number", value: res};
 	},
 
 	'-': function(args, env) {
-		var res = this.exec(args[0], env);
+		var res = this.exec(args[0], env).value;
 
 		for (var i = 1; i < args.length; i++) {
-			res -= this.exec(args[i], env);
+			res -= this.exec(args[i], env).value;
 		}
 
-		return res;
+		return {type: "number", value: res};
 	},
 
 	'*': function(args, env) {
 		var res = 1;
 
 		for (var i = 0; i < args.length; i++) {
-			res *= this.exec(args[i], env);
+			res *= this.exec(args[i], env).value;
 		}
 
-		return res;
+		return {type: "number", value: res};
 	},
 
 	'/': function(args, env) {
-		var res = this.exec(args[0], env);
+		var res = this.exec(args[0], env).value;
 
 		for (var i = 1; i < args.length; i++) {
-			res /= this.exec(args[i], env);
+			res /= this.exec(args[i], env).value;
 		}
 
-		return res;
+		return {type: "number", value: res};
 	},
 
 	// gonometry
 	'cos': function(args, env) {
-		return Math.cos(this.exec(args[0]), env);
+		return {
+			type: "number",
+			value: Math.cos(this.exec(args[0], env).value),
+		};
 	},
 
 	'sin': function(args, env) {
-		return Math.sin(this.exec(args[0]), env);
+		return {
+			type: "number",
+			value: Math.sin(this.exec(args[0], env).value),
+		};
 	},
 
 	'tan': function(args, env) {
-		return Math.tan(this.exec(args[0]), env);
+		return {
+			type: "number",
+			value: Math.tan(this.exec(args[0], env).value),
+		};
 	},
 
 	// comparison
-	'<=': function(a, env) { return this.exec(a[0], env) <=  this.exec(a[1], env); },
-	'<':  function(a, env) { return this.exec(a[0], env) <   this.exec(a[1], env); },
-	'>=': function(a, env) { return this.exec(a[0], env) >=  this.exec(a[1], env); },
-	'>':  function(a, env) { return this.exec(a[0], env) >   this.exec(a[1], env); },
-	'=':  function(a, env) { return this.exec(a[0], env) ==  this.exec(a[1], env); },
-	'eq': function(a, env) { return this.exec(a[0], env) === this.exec(a[1], env); },
+	'<=': function(a, env) {
+		return {
+			type: "boolean",
+			value: this.exec(a[0], env).value <= this.exec(a[1], env).value,
+		};
+	},
+	'<': function(a, env) {
+		return {
+			type: "boolean",
+			value: this.exec(a[0], env).value < this.exec(a[1], env).value,
+		};
+	},
+	'>=': function(a, env) {
+		return {
+			type: "boolean",
+			value: this.exec(a[0], env).value >= this.exec(a[1], env).value,
+		};
+	},
+	'>': function(a, env) {
+		return {
+			type: "boolean",
+			value: this.exec(a[0], env).value > this.exec(a[1], env).value,
+		};
+	},
+	'=': function(a, env) {
+		return {
+			type: "boolean",
+			value: this.exec(a[0], env).value == this.exec(a[1], env).value,
+		};
+	},
+	'eq': function(a, env) {
+		return {
+			type: "boolean",
+			value: this.exec(a[0], env).value === this.exec(a[1], env).value,
+		};
+	},
 
 	// logical
 	'not': function(args, env) {
-		return !this.exec(args[0], env);
+		return {
+			type: "boolean",
+			value: !this.exec(args[0], env).value,
+		};
 	},
 
 	'and': function(args, env) {
-		var res = false;
+		var res = {
+			type: "boolean",
+			value: false,
+		};
 
 		for (var i = 0; i < args.length; i++) {
-			if ((res = this.exec(args[i], env)) === false) {
-				return false;
+			res = this.exec(args[i], env);
+
+			if (res.type === "boolean" && res.value === false) {
+				return res;
 			}
 		}
 
@@ -222,15 +274,20 @@ var builtins = {
 	},
 
 	'or': function(args, env) {
-		var res = false;
+		var res = {
+			type: "boolean",
+			value: false,
+		};
 
 		for (var i = 0; i < args.length; i++) {
-			if ((res = this.exec(args[i], env)) !== false) {
+			res = this.exec(args[i], env);
+
+			if (res.type !== "boolean" || res.value !== false) {
 				return res;
 			}
 		}
 
-		return false;
+		return res;
 	},
 
 	// stuff
@@ -238,9 +295,12 @@ var builtins = {
 	'list': function(args, env) {
 		var self = this;
 
-		return args.map(function(e) {
-			return self.exec(e, env);
-		});
+		var res = [];
+		for (var i=0;i<args.length;i++) {
+			res.push(self.exec(args[i], env));
+		}
+
+		return res;
 	},
 
 	'progn': function(args, env) {
@@ -251,11 +311,16 @@ var builtins = {
 
 		var res = this.exec(_args, env);
 
-		return res.length ? res[res.length - 1] : false;
+		return res.length ? res[res.length-1] : false;
 	},
 
 	'print': function(args, env) {
-		var res = this.exec(['progn'].concat(args), env);
+		var _args = {
+			type: "list",
+			cells: [{type: "symbol", eval: true, name: "progn"}].concat(args),
+		};
+
+		var res = this.exec(_args, env);
 
 		console.log(res);
 
